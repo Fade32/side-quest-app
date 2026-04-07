@@ -1,0 +1,369 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    min-height: 100vh;
+    padding: 20px;
+}
+
+.container {
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+h1 {
+    text-align: center;
+    color: white;
+    margin-bottom: 30px;
+    font-size: 2.5em;
+    text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+}
+
+.section {
+    background: white;
+    border-radius: 12px;
+    padding: 30px;
+    margin-bottom: 20px;
+    box-shadow: 0 8px 16px rgba(0,0,0,0.2);
+}
+
+.hidden {
+    display: none !important;
+}
+
+.card {
+    background: #f8f9fa;
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 20px;
+    border: 1px solid #e0e0e0;
+}
+
+h2 {
+    color: #333;
+    margin-bottom: 20px;
+}
+
+h3 {
+    color: #555;
+    margin-bottom: 15px;
+}
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+input, textarea {
+    padding: 12px;
+    border: 2px solid #ddd;
+    border-radius: 6px;
+    font-size: 16px;
+    transition: border-color 0.3s;
+}
+
+input:focus, textarea:focus {
+    outline: none;
+    border-color: #667eea;
+}
+
+textarea {
+    resize: vertical;
+    min-height: 80px;
+    font-family: inherit;
+}
+
+button {
+    padding: 12px 24px;
+    background: #667eea;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-size: 16px;
+    cursor: pointer;
+    transition: background 0.3s;
+    font-weight: 600;
+}
+
+button:hover {
+    background: #5568d3;
+}
+
+.logout-btn {
+    background: #dc3545;
+    padding: 8px 16px;
+    font-size: 14px;
+}
+
+.logout-btn:hover {
+    background: #c82333;
+}
+
+.user-info {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    padding-bottom: 20px;
+    border-bottom: 2px solid #e0e0e0;
+}
+
+.quest-item, .friend-item {
+    background: white;
+    padding: 15px;
+    border-radius: 6px;
+    margin-bottom: 10px;
+    border-left: 4px solid #667eea;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.quest-item.completed {
+    opacity: 0.6;
+    border-left-color: #28a745;
+}
+
+.quest-info {
+    flex: 1;
+}
+
+.quest-title {
+    font-weight: 600;
+    font-size: 18px;
+    margin-bottom: 5px;
+}
+
+.quest-description {
+    color: #666;
+    font-size: 14px;
+    margin-bottom: 5px;
+}
+
+.quest-status {
+    font-size: 12px;
+    color: #999;
+}
+
+.complete-btn {
+    padding: 8px 16px;
+    font-size: 14px;
+    background: #28a745;
+}
+
+.complete-btn:hover {
+    background: #218838;
+}
+
+.complete-btn:disabled {
+    background: #6c757d;
+    cursor: not-allowed;
+}
+
+.friend-item {
+    border-left-color: #764ba2;
+}
+
+.challenge-item {
+    background: white;
+    padding: 15px;
+    border-radius: 6px;
+    margin-bottom: 10px;
+    border-left: 4px solid #ff6b6b;
+}
+
+.challenge-item.proof_uploaded {
+    border-left-color: #ffa500;
+}
+
+.challenge-item.accepted {
+    border-left-color: #28a745;
+}
+
+.challenge-item.rejected {
+    border-left-color: #dc3545;
+}
+
+.challenge-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.challenge-title {
+    font-weight: 600;
+    font-size: 18px;
+}
+
+.challenge-status {
+    padding: 4px 12px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.challenge-status.pending {
+    background: #ffeaa7;
+    color: #d63031;
+}
+
+.challenge-status.proof_uploaded {
+    background: #fdcb6e;
+    color: #e17055;
+}
+
+.challenge-status.accepted {
+    background: #55efc4;
+    color: #00b894;
+}
+
+.challenge-status.rejected {
+    background: #fab1a0;
+    color: #d63031;
+}
+
+.challenge-description {
+    color: #666;
+    font-size: 14px;
+    margin-bottom: 10px;
+}
+
+.challenge-meta {
+    font-size: 12px;
+    color: #999;
+    margin-bottom: 10px;
+}
+
+.challenge-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 10px;
+}
+
+.challenge-actions button {
+    flex: 1;
+    padding: 8px 12px;
+    font-size: 14px;
+}
+
+.accept-btn {
+    background: #28a745;
+}
+
+.accept-btn:hover {
+    background: #218838;
+}
+
+.reject-btn {
+    background: #dc3545;
+}
+
+.reject-btn:hover {
+    background: #c82333;
+}
+
+.upload-btn {
+    background: #17a2b8;
+}
+
+.upload-btn:hover {
+    background: #138496;
+}
+
+.proof-image {
+    max-width: 100%;
+    border-radius: 6px;
+    margin-top: 10px;
+    cursor: pointer;
+}
+
+.proof-image:hover {
+    opacity: 0.9;
+}
+
+input[type="file"] {
+    padding: 8px;
+}
+
+select {
+    padding: 12px;
+    border: 2px solid #ddd;
+    border-radius: 6px;
+    font-size: 16px;
+    background: white;
+    cursor: pointer;
+}
+
+select:focus {
+    outline: none;
+    border-color: #667eea;
+}
+
+.empty-state {
+    text-align: center;
+    color: #999;
+    padding: 20px;
+    font-style: italic;
+}
+
+.message {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    padding: 15px 20px;
+    border-radius: 6px;
+    color: white;
+    font-weight: 600;
+    max-width: 300px;
+    display: none;
+    animation: slideIn 0.3s ease;
+    z-index: 1000;
+}
+
+.message.success {
+    background: #28a745;
+}
+
+.message.error {
+    background: #dc3545;
+}
+
+.message.show {
+    display: block;
+}
+
+@keyframes slideIn {
+    from {
+        transform: translateX(400px);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+@media (max-width: 600px) {
+    h1 {
+        font-size: 2em;
+    }
+    
+    .user-info {
+        flex-direction: column;
+        gap: 10px;
+        align-items: flex-start;
+    }
+    
+    .quest-item {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+    }
+}

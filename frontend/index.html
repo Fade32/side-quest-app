@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Side Quest App</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>🎮 Side Quest App</h1>
+        
+        <!-- Login Section -->
+        <div id="login-section" class="section">
+            <h2>Login / Sign Up</h2>
+            <div class="form-group">
+                <input type="text" id="username" placeholder="Username" />
+                <input type="password" id="password" placeholder="Password" />
+                <button onclick="login()">Login / Sign Up</button>
+            </div>
+        </div>
+
+        <!-- Main App Section (hidden until logged in) -->
+        <div id="app-section" class="section hidden">
+            <div class="user-info">
+                <h2>Welcome, <span id="current-user"></span>!</h2>
+                <button onclick="logout()" class="logout-btn">Logout</button>
+            </div>
+
+            <!-- Add Sidequest -->
+            <div class="card">
+                <h3>➕ Add New Sidequest</h3>
+                <div class="form-group">
+                    <input type="text" id="quest-title" placeholder="Quest Title" />
+                    <textarea id="quest-description" placeholder="Description (optional)"></textarea>
+                    <button onclick="addSidequest()">Add Sidequest</button>
+                </div>
+            </div>
+
+            <!-- Sidequests List -->
+            <div class="card">
+                <h3>📋 My Sidequests</h3>
+                <div id="sidequests-list"></div>
+            </div>
+
+            <!-- Add Friend -->
+            <div class="card">
+                <h3>👥 Add Friend</h3>
+                <div class="form-group">
+                    <input type="text" id="friend-username" placeholder="Friend's Username" />
+                    <button onclick="addFriend()">Add Friend</button>
+                </div>
+            </div>
+
+            <!-- Friends List -->
+            <div class="card">
+                <h3>🤝 My Friends</h3>
+                <div id="friends-list"></div>
+            </div>
+
+            <!-- Create Challenge -->
+            <div class="card">
+                <h3>⚔️ Create Challenge</h3>
+                <div class="form-group">
+                    <select id="challenge-friend">
+                        <option value="">Select a friend to challenge</option>
+                    </select>
+                    <input type="text" id="challenge-title" placeholder="Challenge Title" />
+                    <textarea id="challenge-description" placeholder="Challenge Description"></textarea>
+                    <button onclick="createChallenge()">Send Challenge</button>
+                </div>
+            </div>
+
+            <!-- Challenges Sent -->
+            <div class="card">
+                <h3>📤 Challenges I Sent</h3>
+                <div id="challenges-sent-list"></div>
+            </div>
+
+            <!-- Challenges Received -->
+            <div class="card">
+                <h3>📥 Challenges I Received</h3>
+                <div id="challenges-received-list"></div>
+            </div>
+        </div>
+
+        <!-- Message Display -->
+        <div id="message" class="message"></div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
