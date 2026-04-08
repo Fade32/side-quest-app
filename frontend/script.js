@@ -1,4 +1,4 @@
-const API_URL = 'http://localhost:5000/api';
+const API_URL = 'https://side-quest-app.onrender.com/api';
 let currentUser = null;
 let currentGroupId = null;
 let refreshInterval = null;
