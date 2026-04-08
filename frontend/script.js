@@ -1,5 +1,7 @@
 const API_URL = 'http://localhost:5000/api';
 let currentUser = null;
+let currentGroupId = null;
+let refreshInterval = null;
 
 // Show message to user
 function showMessage(text, type = 'success') {
@@ -10,6 +12,57 @@ function showMessage(text, type = 'success') {
     setTimeout(() => {
         messageEl.classList.remove('show');
     }, 3000);
+}
+
+// Start auto-refresh
+function startAutoRefresh() {
+    // Clear any existing interval
+    if (refreshInterval) {
+        clearInterval(refreshInterval);
+    }
+    
+    // Refresh every 5 seconds
+    refreshInterval = setInterval(() => {
+        if (currentUser) {
+            // Refresh friends and groups lists
+            loadFriends();
+            loadGroups();
+            
+            // If a group modal is open, refresh its data
+            if (currentGroupId && !document.getElementById('group-modal').classList.contains('hidden')) {
+                updateUserPoints(currentGroupId);
+                loadGroupChallenges(currentGroupId);
+                loadGroupLeaderboard(currentGroupId);
+                checkChallengeCreationStatus(currentGroupId);
+            }
+        }
+    }, 5000); // 5 seconds
+}
+
+// Stop auto-refresh
+function stopAutoRefresh() {
+    if (refreshInterval) {
+        clearInterval(refreshInterval);
+        refreshInterval = null;
+    }
+}
+
+// Update user points for current group
+async function updateUserPoints(groupId = null) {
+    try {
+        // If viewing a group modal, update group-specific points
+        if (groupId && !document.getElementById('group-modal').classList.contains('hidden')) {
+            const response = await fetch(`${API_URL}/user/${currentUser}/points?group_id=${groupId}`);
+            const data = await response.json();
+            
+            if (response.ok) {
+                document.getElementById('modal-user-points').textContent = data.points || 0;
+            }
+        }
+    } catch (error) {
+        // Silently fail - don't show error messages for background updates
+        console.error('Error updating points:', error);
+    }
 }
 
 // Login function
@@ -39,9 +92,9 @@ async function login() {
             document.getElementById('login-section').classList.add('hidden');
             document.getElementById('app-section').classList.remove('hidden');
             showMessage(data.message);
-            loadSidequests();
             loadFriends();
-            loadChallenges();
+            loadGroups();
+            startAutoRefresh(); // Start auto-refresh after login
         } else {
             showMessage(data.error, 'error');
         }
@@ -53,119 +106,13 @@ async function login() {
 
 // Logout function
 function logout() {
+    stopAutoRefresh(); // Stop auto-refresh on logout
     currentUser = null;
     document.getElementById('login-section').classList.remove('hidden');
     document.getElementById('app-section').classList.add('hidden');
     document.getElementById('username').value = '';
     document.getElementById('password').value = '';
     showMessage('Logged out successfully');
-}
-
-// Add sidequest
-async function addSidequest() {
-    const title = document.getElementById('quest-title').value.trim();
-    const description = document.getElementById('quest-description').value.trim();
-    
-    if (!title) {
-        showMessage('Please enter a quest title', 'error');
-        return;
-    }
-    
-    try {
-        const response = await fetch(`${API_URL}/sidequest/add`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                username: currentUser,
-                title,
-                description
-            })
-        });
-        
-        const data = await response.json();
-        
-        if (response.ok) {
-            showMessage('Sidequest added!');
-            document.getElementById('quest-title').value = '';
-            document.getElementById('quest-description').value = '';
-            loadSidequests();
-        } else {
-            showMessage(data.error, 'error');
-        }
-    } catch (error) {
-        showMessage('Error adding sidequest', 'error');
-        console.error('Error:', error);
-    }
-}
-
-// Load sidequests
-async function loadSidequests() {
-    try {
-        const response = await fetch(`${API_URL}/sidequests/${currentUser}`);
-        const data = await response.json();
-        
-        const listEl = document.getElementById('sidequests-list');
-        
-        if (data.sidequests.length === 0) {
-            listEl.innerHTML = '<div class="empty-state">No sidequests yet. Add your first one!</div>';
-            return;
-        }
-        
-        listEl.innerHTML = data.sidequests.map(quest => `
-            <div class="quest-item ${quest.completed ? 'completed' : ''}">
-                <div class="quest-info">
-                    <div class="quest-title">${quest.title}</div>
-                    ${quest.description ? `<div class="quest-description">${quest.description}</div>` : ''}
-                    <div class="quest-status">
-                        ${quest.completed 
-                            ? `✅ Completed on ${new Date(quest.completed_at).toLocaleDateString()}`
-                            : '⏳ In Progress'
-                        }
-                    </div>
-                </div>
-                <button 
-                    class="complete-btn" 
-                    onclick="completeSidequest(${quest.id})"
-                    ${quest.completed ? 'disabled' : ''}
-                >
-                    ${quest.completed ? '✓ Done' : 'Complete'}
-                </button>
-            </div>
-        `).join('');
-    } catch (error) {
-        showMessage('Error loading sidequests', 'error');
-        console.error('Error:', error);
-    }
-}
-
-// Complete sidequest
-async function completeSidequest(questId) {
-    try {
-        const response = await fetch(`${API_URL}/sidequest/complete`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                username: currentUser,
-                sidequest_id: questId
-            })
-        });
-        
-        const data = await response.json();
-        
-        if (response.ok) {
-            showMessage('Sidequest completed! 🎉');
-            loadSidequests();
-        } else {
-            showMessage(data.error, 'error');
-        }
-    } catch (error) {
-        showMessage('Error completing sidequest', 'error');
-        console.error('Error:', error);
-    }
 }
 
 // Add friend
@@ -211,11 +158,9 @@ async function loadFriends() {
         const data = await response.json();
         
         const listEl = document.getElementById('friends-list');
-        const selectEl = document.getElementById('challenge-friend');
         
         if (data.friends.length === 0) {
             listEl.innerHTML = '<div class="empty-state">No friends yet. Add some!</div>';
-            selectEl.innerHTML = '<option value="">No friends to challenge</option>';
             return;
         }
         
@@ -224,224 +169,23 @@ async function loadFriends() {
                 <div>👤 ${friend}</div>
             </div>
         `).join('');
-        
-        // Populate challenge dropdown
-        selectEl.innerHTML = '<option value="">Select a friend to challenge</option>' +
-            data.friends.map(friend => `<option value="${friend}">${friend}</option>`).join('');
     } catch (error) {
         showMessage('Error loading friends', 'error');
         console.error('Error:', error);
     }
 }
 
-// Create challenge
-async function createChallenge() {
-    const challenged = document.getElementById('challenge-friend').value;
-    const title = document.getElementById('challenge-title').value.trim();
-    const description = document.getElementById('challenge-description').value.trim();
-    
-    if (!challenged) {
-        showMessage('Please select a friend to challenge', 'error');
-        return;
-    }
-    
-    if (!title) {
-        showMessage('Please enter a challenge title', 'error');
-        return;
-    }
-    
+// Update user points
+async function updatePoints() {
     try {
-        const response = await fetch(`${API_URL}/challenge/create`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                challenger: currentUser,
-                challenged,
-                title,
-                description
-            })
-        });
-        
+        const response = await fetch(`${API_URL}/user/${currentUser}/points`);
         const data = await response.json();
         
         if (response.ok) {
-            showMessage('Challenge sent!');
-            document.getElementById('challenge-title').value = '';
-            document.getElementById('challenge-description').value = '';
-            document.getElementById('challenge-friend').value = '';
-            loadChallenges();
-        } else {
-            showMessage(data.error, 'error');
+            document.getElementById('user-points').textContent = data.points;
         }
     } catch (error) {
-        showMessage('Error creating challenge', 'error');
-        console.error('Error:', error);
-    }
-}
-
-// Upload proof for challenge
-async function uploadProof(challengeId) {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = 'image/*';
-    
-    input.onchange = async (e) => {
-        const file = e.target.files[0];
-        if (!file) return;
-        
-        // Convert image to base64
-        const reader = new FileReader();
-        reader.onload = async (event) => {
-            const base64Image = event.target.result;
-            
-            try {
-                const response = await fetch(`${API_URL}/challenge/upload-proof`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        challenge_id: challengeId,
-                        username: currentUser,
-                        proof_image: base64Image
-                    })
-                });
-                
-                const data = await response.json();
-                
-                if (response.ok) {
-                    showMessage('Proof uploaded! Waiting for review.');
-                    loadChallenges();
-                } else {
-                    showMessage(data.error, 'error');
-                }
-            } catch (error) {
-                showMessage('Error uploading proof', 'error');
-                console.error('Error:', error);
-            }
-        };
-        
-        reader.readAsDataURL(file);
-    };
-    
-    input.click();
-}
-
-// Review challenge (accept or reject)
-async function reviewChallenge(challengeId, accept) {
-    try {
-        const response = await fetch(`${API_URL}/challenge/review`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                challenge_id: challengeId,
-                username: currentUser,
-                accept
-            })
-        });
-        
-        const data = await response.json();
-        
-        if (response.ok) {
-            showMessage(accept ? 'Challenge accepted! 🎉' : 'Challenge rejected');
-            loadChallenges();
-        } else {
-            showMessage(data.error, 'error');
-        }
-    } catch (error) {
-        showMessage('Error reviewing challenge', 'error');
-        console.error('Error:', error);
-    }
-}
-
-// Load all challenges
-async function loadChallenges() {
-    await loadSentChallenges();
-    await loadReceivedChallenges();
-}
-
-// Load sent challenges
-async function loadSentChallenges() {
-    try {
-        const response = await fetch(`${API_URL}/challenges/sent/${currentUser}`);
-        const data = await response.json();
-        
-        const listEl = document.getElementById('challenges-sent-list');
-        
-        if (data.challenges.length === 0) {
-            listEl.innerHTML = '<div class="empty-state">No challenges sent yet</div>';
-            return;
-        }
-        
-        listEl.innerHTML = data.challenges.map(challenge => `
-            <div class="challenge-item ${challenge.status}">
-                <div class="challenge-header">
-                    <div class="challenge-title">${challenge.title}</div>
-                    <span class="challenge-status ${challenge.status}">${challenge.status.replace('_', ' ').toUpperCase()}</span>
-                </div>
-                ${challenge.description ? `<div class="challenge-description">${challenge.description}</div>` : ''}
-                <div class="challenge-meta">
-                    Challenged: <strong>${challenge.challenged}</strong> • 
-                    Created: ${new Date(challenge.created_at).toLocaleDateString()}
-                </div>
-                ${challenge.proof_image ? `
-                    <img src="${challenge.proof_image}" class="proof-image" alt="Proof" onclick="window.open('${challenge.proof_image}', '_blank')">
-                ` : ''}
-                ${challenge.status === 'proof_uploaded' ? `
-                    <div class="challenge-actions">
-                        <button class="accept-btn" onclick="reviewChallenge(${challenge.id}, true)">✓ Accept</button>
-                        <button class="reject-btn" onclick="reviewChallenge(${challenge.id}, false)">✗ Reject</button>
-                    </div>
-                ` : ''}
-            </div>
-        `).join('');
-    } catch (error) {
-        showMessage('Error loading sent challenges', 'error');
-        console.error('Error:', error);
-    }
-}
-
-// Load received challenges
-async function loadReceivedChallenges() {
-    try {
-        const response = await fetch(`${API_URL}/challenges/received/${currentUser}`);
-        const data = await response.json();
-        
-        const listEl = document.getElementById('challenges-received-list');
-        
-        if (data.challenges.length === 0) {
-            listEl.innerHTML = '<div class="empty-state">No challenges received yet</div>';
-            return;
-        }
-        
-        listEl.innerHTML = data.challenges.map(challenge => `
-            <div class="challenge-item ${challenge.status}">
-                <div class="challenge-header">
-                    <div class="challenge-title">${challenge.title}</div>
-                    <span class="challenge-status ${challenge.status}">${challenge.status.replace('_', ' ').toUpperCase()}</span>
-                </div>
-                ${challenge.description ? `<div class="challenge-description">${challenge.description}</div>` : ''}
-                <div class="challenge-meta">
-                    From: <strong>${challenge.challenger}</strong> • 
-                    Created: ${new Date(challenge.created_at).toLocaleDateString()}
-                </div>
-                ${challenge.proof_image ? `
-                    <img src="${challenge.proof_image}" class="proof-image" alt="Proof" onclick="window.open('${challenge.proof_image}', '_blank')">
-                ` : ''}
-                ${challenge.status === 'pending' ? `
-                    <div class="challenge-actions">
-                        <button class="upload-btn" onclick="uploadProof(${challenge.id})">📷 Upload Proof</button>
-                    </div>
-                ` : ''}
-            </div>
-        `).join('');
-    } catch (error) {
-        showMessage('Error loading received challenges', 'error');
-        console.error('Error:', error);
+        console.error('Error updating points:', error);
     }
 }
 
@@ -454,3 +198,602 @@ document.addEventListener('DOMContentLoaded', () => {
         if (e.key === 'Enter') login();
     });
 });
+
+// Create group
+async function createGroup() {
+    const name = document.getElementById('group-name').value.trim();
+    
+    if (!name) {
+        showMessage('Please enter a group name', 'error');
+        return;
+    }
+    
+    try {
+        const response = await fetch(`${API_URL}/group/create`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                creator: currentUser,
+                name
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+            showMessage('Group created!');
+            document.getElementById('group-name').value = '';
+            loadGroups();
+        } else {
+            showMessage(data.error, 'error');
+        }
+    } catch (error) {
+        showMessage('Error creating group', 'error');
+        console.error('Error:', error);
+    }
+}
+
+// Load groups
+async function loadGroups() {
+    try {
+        const response = await fetch(`${API_URL}/groups/user/${currentUser}`);
+        const data = await response.json();
+        
+        const listEl = document.getElementById('groups-list');
+        
+        if (data.groups.length === 0) {
+            listEl.innerHTML = '<div class="empty-state">No groups yet. Create one!</div>';
+            return;
+        }
+        
+        listEl.innerHTML = data.groups.map(group => `
+            <div class="group-item" onclick="openGroupModal(${group.id})">
+                <div class="group-name">${group.name}</div>
+                <div class="group-info">
+                    ${group.members.length} member(s) • 
+                    Creator: ${group.creator}
+                </div>
+            </div>
+        `).join('');
+    } catch (error) {
+        showMessage('Error loading groups', 'error');
+        console.error('Error:', error);
+    }
+}
+
+// Open group modal
+async function openGroupModal(groupId) {
+    currentGroupId = groupId;
+    
+    try {
+        const response = await fetch(`${API_URL}/groups/user/${currentUser}`);
+        const data = await response.json();
+        
+        const group = data.groups.find(g => g.id === groupId);
+        if (!group) return;
+        
+        document.getElementById('modal-group-name').textContent = group.name;
+        
+        // Show add member section only for creator
+        const addMemberSection = document.getElementById('add-member-section');
+        if (group.creator === currentUser) {
+            addMemberSection.style.display = 'block';
+            await loadFriendsForGroup(group.members);
+        } else {
+            addMemberSection.style.display = 'none';
+        }
+        
+        // Display members
+        const membersHtml = group.members.map(member => 
+            `<span class="member-item ${member === group.creator ? 'creator' : ''}">${member}${member === group.creator ? ' 👑' : ''}</span>`
+        ).join('');
+        document.getElementById('modal-members-list').innerHTML = membersHtml;
+        
+        // Update user's points in this group
+        await updateUserPoints(groupId);
+        
+        // Load group challenges
+        await loadGroupChallenges(groupId);
+        
+        // Load group leaderboard
+        await loadGroupLeaderboard(groupId);
+        
+        // Check if new challenge can be created
+        await checkChallengeCreationStatus(groupId);
+        
+        document.getElementById('group-modal').classList.remove('hidden');
+    } catch (error) {
+        showMessage('Error loading group', 'error');
+        console.error('Error:', error);
+    }
+}
+
+// Close group modal
+function closeGroupModal() {
+    document.getElementById('group-modal').classList.add('hidden');
+    currentGroupId = null;
+}
+
+// Load friends for group (exclude existing members)
+async function loadFriendsForGroup(existingMembers) {
+    try {
+        const response = await fetch(`${API_URL}/friends/${currentUser}`);
+        const data = await response.json();
+        
+        const selectEl = document.getElementById('modal-friend-select');
+        const availableFriends = data.friends.filter(f => !existingMembers.includes(f));
+        
+        if (availableFriends.length === 0) {
+            selectEl.innerHTML = '<option value="">No friends to add</option>';
+            return;
+        }
+        
+        selectEl.innerHTML = '<option value="">Select a friend to add</option>' +
+            availableFriends.map(friend => `<option value="${friend}">${friend}</option>`).join('');
+    } catch (error) {
+        console.error('Error:', error);
+    }
+}
+
+// Add group member
+async function addGroupMember() {
+    const member = document.getElementById('modal-friend-select').value;
+    
+    if (!member) {
+        showMessage('Please select a friend', 'error');
+        return;
+    }
+    
+    try {
+        const response = await fetch(`${API_URL}/group/${currentGroupId}/add-member`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                username: currentUser,
+                member
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+            showMessage('Member added!');
+            openGroupModal(currentGroupId);
+            loadGroups();
+        } else {
+            showMessage(data.error, 'error');
+        }
+    } catch (error) {
+        showMessage('Error adding member', 'error');
+        console.error('Error:', error);
+    }
+}
+
+// Create group challenge
+async function createGroupChallenge() {
+    // Deprecated - keeping for reference
+    const title = document.getElementById('modal-challenge-title').value.trim();
+    const description = document.getElementById('modal-challenge-description').value.trim();
+    const difficulty = document.getElementById('modal-challenge-difficulty').value;
+    
+    if (!title) {
+        showMessage('Please enter a challenge title', 'error');
+        return;
+    }
+    
+    try {
+        const response = await fetch(`${API_URL}/group/${currentGroupId}/challenge/create`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                title,
+                description,
+                difficulty
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+            showMessage(data.message);
+            document.getElementById('modal-challenge-title').value = '';
+            document.getElementById('modal-challenge-description').value = '';
+            document.getElementById('modal-challenge-difficulty').value = 'easy';
+            loadGroupChallenges(currentGroupId);
+        } else {
+            showMessage(data.error, 'error');
+        }
+    } catch (error) {
+        showMessage('Error creating group challenge', 'error');
+        console.error('Error:', error);
+    }
+}
+
+// Pick random challenger
+async function pickRandomChallenger() {
+    try {
+        const response = await fetch(`${API_URL}/group/${currentGroupId}/pick-challenger`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+            showMessage(data.message);
+            loadGroupChallenges(currentGroupId);
+        } else {
+            showMessage(data.error, 'error');
+        }
+    } catch (error) {
+        showMessage('Error picking challenger', 'error');
+        console.error('Error:', error);
+    }
+}
+
+// Check if a new challenge can be created today
+async function checkChallengeCreationStatus(groupId) {
+    try {
+        const response = await fetch(`${API_URL}/group/${groupId}/can-create-challenge`);
+        const data = await response.json();
+        
+        const button = document.querySelector('button[onclick="pickRandomChallenger()"]');
+        
+        if (!data.can_create) {
+            // Disable button and show countdown
+            button.disabled = true;
+            button.innerHTML = `🎲 Next Challenge in ${data.hours_remaining}h ${data.minutes_remaining}m`;
+            button.style.opacity = '0.6';
+            button.style.cursor = 'not-allowed';
+        } else {
+            // Enable button
+            button.disabled = false;
+            button.innerHTML = '🎲 Pick Random Member to Create Challenge';
+            button.style.opacity = '1';
+            button.style.cursor = 'pointer';
+        }
+    } catch (error) {
+        console.error('Error checking challenge status:', error);
+    }
+}
+
+// Define group challenge (by chosen member)
+async function defineGroupChallenge() {
+    const title = document.getElementById('modal-challenge-title').value.trim();
+    const description = document.getElementById('modal-challenge-description').value.trim();
+    const difficulty = document.getElementById('modal-challenge-difficulty').value;
+    
+    if (!title) {
+        showMessage('Please enter a challenge title', 'error');
+        return;
+    }
+    
+    // Find the pending challenge
+    try {
+        const challengesResponse = await fetch(`${API_URL}/group/${currentGroupId}/challenges`);
+        const challengesData = await challengesResponse.json();
+        const pendingChallenge = challengesData.challenges.find(c => c.status === 'awaiting_creation' && c.challenger === currentUser);
+        
+        if (!pendingChallenge) {
+            showMessage('No pending challenge found', 'error');
+            return;
+        }
+        
+        const response = await fetch(`${API_URL}/group-challenge/${pendingChallenge.id}/define`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                username: currentUser,
+                title,
+                description,
+                difficulty
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+            showMessage('Challenge created!');
+            document.getElementById('modal-challenge-title').value = '';
+            document.getElementById('modal-challenge-description').value = '';
+            document.getElementById('modal-challenge-difficulty').value = 'easy';
+            document.getElementById('challenge-creator-section').classList.add('hidden');
+            loadGroupChallenges(currentGroupId);
+        } else {
+            showMessage(data.error, 'error');
+        }
+    } catch (error) {
+        showMessage('Error defining challenge', 'error');
+        console.error('Error:', error);
+    }
+}
+
+// Load group challenges
+async function loadGroupChallenges(groupId) {
+    try {
+        const response = await fetch(`${API_URL}/group/${groupId}/challenges`);
+        const data = await response.json();
+        
+        const listEl = document.getElementById('modal-challenges-list');
+        
+        // Check if there's a pending challenge awaiting creation
+        const pendingChallenge = data.challenges.find(c => c.status === 'awaiting_creation');
+        if (pendingChallenge) {
+            if (pendingChallenge.challenger === currentUser) {
+                // Show the form to this user
+                document.getElementById('challenge-creator-section').classList.remove('hidden');
+            } else {
+                // Show waiting message to other users
+                document.getElementById('challenge-creator-section').classList.add('hidden');
+            }
+        } else {
+            document.getElementById('challenge-creator-section').classList.add('hidden');
+        }
+        
+        const activeChallenges = data.challenges.filter(c => c.status === 'active' || c.status === 'awaiting_creation');
+        
+        if (activeChallenges.length === 0) {
+            listEl.innerHTML = '<div class="empty-state">No challenges yet</div>';
+            return;
+        }
+        
+        listEl.innerHTML = activeChallenges.map(challenge => {
+            // If challenge is awaiting creation
+            if (challenge.status === 'awaiting_creation') {
+                if (challenge.challenger === currentUser) {
+                    return `
+                        <div class="challenge-item" style="border-left-color: #ffa500;">
+                            <div class="challenge-header">
+                                <div class="challenge-title">⏳ You need to create a challenge!</div>
+                            </div>
+                            <p>Fill out the form above to create the challenge for your group.</p>
+                        </div>
+                    `;
+                } else {
+                    return `
+                        <div class="challenge-item" style="border-left-color: #ffa500;">
+                            <div class="challenge-header">
+                                <div class="challenge-title">⏳ Waiting for challenge...</div>
+                            </div>
+                            <p><strong>${challenge.challenger}</strong> was randomly chosen to create the next challenge!</p>
+                        </div>
+                    `;
+                }
+            }
+            
+            // Active challenges
+            const userSubmission = challenge.submissions.find(s => s.username === currentUser);
+            const isChallenger = challenge.challenger === currentUser;
+            
+            return `
+                <div class="challenge-item">
+                    <div class="challenge-header">
+                        <div class="challenge-title">
+                            ${challenge.title}
+                            <span class="difficulty-badge ${challenge.difficulty}">${challenge.difficulty.toUpperCase()} - ${challenge.points} pts</span>
+                        </div>
+                    </div>
+                    ${challenge.description ? `<div class="challenge-description">${challenge.description}</div>` : ''}
+                    <div class="challenge-meta">
+                        Created by: <strong>${challenge.challenger}</strong> • 
+                        ${new Date(challenge.challenge_created_at).toLocaleDateString()}
+                        ${challenge.deadline ? ` • ⏰ Deadline: ${new Date(challenge.deadline).toLocaleString()}` : ''}
+                    </div>
+                    
+                    ${!userSubmission && !isChallenger ? `
+                        <div class="challenge-actions">
+                            <button class="upload-btn" onclick="submitGroupProof(${challenge.id})">📷 Submit Proof</button>
+                        </div>
+                    ` : ''}
+                    
+                    ${isChallenger ? `
+                        <div style="padding: 10px; background: #fff3cd; border-radius: 6px; margin-top: 10px;">
+                            <strong>You created this challenge!</strong> Review submissions below.
+                        </div>
+                    ` : ''}
+                    
+                    ${userSubmission ? `
+                        <div class="submission-item ${userSubmission.status}">
+                            <div class="submission-header">
+                                <span>Your submission</span>
+                                <span class="challenge-status ${userSubmission.status}">${userSubmission.status.toUpperCase()}</span>
+                            </div>
+                            <img src="${userSubmission.proof_image}" class="proof-image" alt="Your proof" onclick="window.open('${userSubmission.proof_image}', '_blank')">
+                            ${userSubmission.status === 'accepted' ? `
+                                <div style="color: #28a745; font-weight: 600; margin-top: 8px;">
+                                    ✅ You earned ${challenge.points} points!
+                                </div>
+                            ` : ''}
+                        </div>
+                    ` : ''}
+                    
+                    ${isChallenger && challenge.submissions.length > 0 ? `
+                        <div style="margin-top: 15px;">
+                            <strong>Submissions to review:</strong>
+                            ${challenge.submissions.map(sub => `
+                                <div class="submission-item ${sub.status}">
+                                    <div class="submission-header">
+                                        <span class="submission-user">${sub.username}</span>
+                                        <span class="challenge-status ${sub.status}">${sub.status.toUpperCase()}</span>
+                                    </div>
+                                    <img src="${sub.proof_image}" class="proof-image" alt="Proof" onclick="window.open('${sub.proof_image}', '_blank')">
+                                    ${sub.status === 'pending' ? `
+                                        <div class="submission-actions">
+                                            <button class="accept-btn" onclick="reviewGroupSubmission(${challenge.id}, '${sub.username}', true)">✓ Accept</button>
+                                            <button class="reject-btn" onclick="reviewGroupSubmission(${challenge.id}, '${sub.username}', false)">✗ Reject</button>
+                                        </div>
+                                    ` : ''}
+                                </div>
+                            `).join('')}
+                        </div>
+                    ` : ''}
+                    
+                    ${isChallenger && challenge.submissions.length === 0 ? `
+                        <div style="padding: 10px; background: #f8f9fa; border-radius: 6px; margin-top: 10px; text-align: center; color: #666;">
+                            No submissions yet. Waiting for group members to submit proof...
+                        </div>
+                    ` : ''}
+                </div>
+            `;
+        }).join('');
+    } catch (error) {
+        showMessage('Error loading group challenges', 'error');
+        console.error('Error:', error);
+    }
+}
+
+// Submit group proof
+async function submitGroupProof(challengeId) {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    
+    input.onchange = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        
+        const reader = new FileReader();
+        reader.onload = async (event) => {
+            const base64Image = event.target.result;
+            
+            try {
+                const response = await fetch(`${API_URL}/group-challenge/${challengeId}/submit`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        username: currentUser,
+                        proof_image: base64Image
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    showMessage('Proof submitted!');
+                    loadGroupChallenges(currentGroupId);
+                } else {
+                    showMessage(data.error, 'error');
+                }
+            } catch (error) {
+                showMessage('Error submitting proof', 'error');
+                console.error('Error:', error);
+            }
+        };
+        
+        reader.readAsDataURL(file);
+    };
+    
+    input.click();
+}
+
+// Review group submission
+async function reviewGroupSubmission(challengeId, targetUsername, accept) {
+    try {
+        const response = await fetch(`${API_URL}/group-challenge/${challengeId}/review`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                reviewer: currentUser,
+                target_username: targetUsername,
+                accept
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+            showMessage(accept ? 'Submission accepted! 🎉' : 'Submission rejected');
+            updateUserPoints(currentGroupId); // Update points immediately
+            loadGroupChallenges(currentGroupId);
+            loadGroupLeaderboard(currentGroupId);
+        } else {
+            showMessage(data.error, 'error');
+        }
+    } catch (error) {
+        showMessage('Error reviewing submission', 'error');
+        console.error('Error:', error);
+    }
+}
+
+// Load group leaderboard
+async function loadGroupLeaderboard(groupId) {
+    try {
+        const response = await fetch(`${API_URL}/group/${groupId}/leaderboard`);
+        const data = await response.json();
+        
+        const listEl = document.getElementById('modal-leaderboard-list');
+        
+        if (data.leaderboard.length === 0) {
+            listEl.innerHTML = '<div class="empty-state">No scores yet</div>';
+            return;
+        }
+        
+        listEl.innerHTML = data.leaderboard.map((entry, index) => {
+            const rank = index + 1;
+            let medal = '';
+            if (rank === 1) medal = '🥇';
+            else if (rank === 2) medal = '🥈';
+            else if (rank === 3) medal = '🥉';
+            
+            return `
+                <div class="leaderboard-item rank-${rank > 3 ? 'other' : rank}">
+                    <span class="leaderboard-rank">${medal || rank}</span>
+                    <span class="leaderboard-username">${entry.username}${entry.username === currentUser ? ' (You)' : ''}</span>
+                    <span class="leaderboard-points">${entry.points} pts</span>
+                </div>
+            `;
+        }).join('');
+    } catch (error) {
+        showMessage('Error loading group leaderboard', 'error');
+        console.error('Error:', error);
+    }
+}
+
+// Load leaderboard (DEPRECATED - keeping for compatibility)
+async function loadLeaderboard() {
+    try {
+        const response = await fetch(`${API_URL}/leaderboard`);
+        const data = await response.json();
+        
+        const listEl = document.getElementById('leaderboard-list');
+        
+        if (data.leaderboard.length === 0) {
+            listEl.innerHTML = '<div class="empty-state">No scores yet</div>';
+            return;
+        }
+        
+        listEl.innerHTML = data.leaderboard.map((entry, index) => {
+            const rank = index + 1;
+            let medal = '';
+            if (rank === 1) medal = '🥇';
+            else if (rank === 2) medal = '🥈';
+            else if (rank === 3) medal = '🥉';
+            
+            return `
+                <div class="leaderboard-item rank-${rank > 3 ? 'other' : rank}">
+                    <span class="leaderboard-rank">${medal || rank}</span>
+                    <span class="leaderboard-username">${entry.username}${entry.username === currentUser ? ' (You)' : ''}</span>
+                    <span class="leaderboard-points">${entry.points} pts</span>
+                </div>
+            `;
+        }).join('');
+    } catch (error) {
+        showMessage('Error loading leaderboard', 'error');
+        console.error('Error:', error);
+    }
+}
+

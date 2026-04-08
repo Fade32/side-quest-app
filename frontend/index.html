@@ -23,24 +23,10 @@
         <!-- Main App Section (hidden until logged in) -->
         <div id="app-section" class="section hidden">
             <div class="user-info">
-                <h2>Welcome, <span id="current-user"></span>!</h2>
-                <button onclick="logout()" class="logout-btn">Logout</button>
-            </div>
-
-            <!-- Add Sidequest -->
-            <div class="card">
-                <h3>➕ Add New Sidequest</h3>
-                <div class="form-group">
-                    <input type="text" id="quest-title" placeholder="Quest Title" />
-                    <textarea id="quest-description" placeholder="Description (optional)"></textarea>
-                    <button onclick="addSidequest()">Add Sidequest</button>
+                <div>
+                    <h2>Welcome, <span id="current-user"></span>!</h2>
                 </div>
-            </div>
-
-            <!-- Sidequests List -->
-            <div class="card">
-                <h3>📋 My Sidequests</h3>
-                <div id="sidequests-list"></div>
+                <button onclick="logout()" class="logout-btn">Logout</button>
             </div>
 
             <!-- Add Friend -->
@@ -58,29 +44,78 @@
                 <div id="friends-list"></div>
             </div>
 
-            <!-- Create Challenge -->
+            <!-- Create Group -->
             <div class="card">
-                <h3>⚔️ Create Challenge</h3>
+                <h3>👥 Create Group</h3>
                 <div class="form-group">
-                    <select id="challenge-friend">
-                        <option value="">Select a friend to challenge</option>
-                    </select>
-                    <input type="text" id="challenge-title" placeholder="Challenge Title" />
-                    <textarea id="challenge-description" placeholder="Challenge Description"></textarea>
-                    <button onclick="createChallenge()">Send Challenge</button>
+                    <input type="text" id="group-name" placeholder="Group Name" />
+                    <button onclick="createGroup()">Create Group</button>
                 </div>
             </div>
 
-            <!-- Challenges Sent -->
+            <!-- My Groups -->
             <div class="card">
-                <h3>📤 Challenges I Sent</h3>
-                <div id="challenges-sent-list"></div>
+                <h3>🏠 My Groups</h3>
+                <div id="groups-list"></div>
             </div>
+        </div>
 
-            <!-- Challenges Received -->
-            <div class="card">
-                <h3>📥 Challenges I Received</h3>
-                <div id="challenges-received-list"></div>
+        <!-- Group Detail Modal -->
+        <div id="group-modal" class="modal hidden">
+            <div class="modal-content">
+                <span class="close" onclick="closeGroupModal()">&times;</span>
+                <h2 id="modal-group-name"></h2>
+                <div style="margin: 10px 0; padding: 10px; background: #f0f0f0; border-radius: 6px; text-align: center;">
+                    <strong>🏆 Your Points in this Group: <span id="modal-user-points">0</span></strong>
+                </div>
+                
+                <!-- Add Member Section -->
+                <div class="modal-section" id="add-member-section">
+                    <h3>Add Member</h3>
+                    <div class="form-group">
+                        <select id="modal-friend-select">
+                            <option value="">Select a friend to add</option>
+                        </select>
+                        <button onclick="addGroupMember()">Add to Group</button>
+                    </div>
+                </div>
+
+                <!-- Group Members -->
+                <div class="modal-section">
+                    <h3>Members</h3>
+                    <div id="modal-members-list"></div>
+                </div>
+
+                <!-- Create Group Challenge -->
+                <div class="modal-section">
+                    <h3>Create Group Challenge</h3>
+                    <div class="form-group">
+                        <button onclick="pickRandomChallenger()">🎲 Pick Random Member to Create Challenge</button>
+                    </div>
+                    <div id="challenge-creator-section" class="hidden">
+                        <p style="color: #667eea; font-weight: 600; margin: 10px 0;">You were chosen to create the challenge!</p>
+                        <select id="modal-challenge-difficulty">
+                            <option value="easy">Easy - 10 points</option>
+                            <option value="medium">Medium - 25 points</option>
+                            <option value="hard">Hard - 50 points</option>
+                        </select>
+                        <input type="text" id="modal-challenge-title" placeholder="Challenge Title" />
+                        <textarea id="modal-challenge-description" placeholder="Challenge Description"></textarea>
+                        <button onclick="defineGroupChallenge()">Create Challenge</button>
+                    </div>
+                </div>
+
+                <!-- Group Challenges -->
+                <div class="modal-section">
+                    <h3>Group Challenges</h3>
+                    <div id="modal-challenges-list"></div>
+                </div>
+
+                <!-- Group Leaderboard -->
+                <div class="modal-section">
+                    <h3>🏆 Group Leaderboard</h3>
+                    <div id="modal-leaderboard-list"></div>
+                </div>
             </div>
         </div>
 
