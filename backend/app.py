@@ -3,17 +3,27 @@ from flask_cors import CORS
 from datetime import datetime, timedelta
 import json
 import os
+import requests
 
 app = Flask(__name__)
 CORS(app)  # Enable CORS for all routes and origins
 
-# Simple file-based storage (replace with database later)
+# jsDelivr CDN URL for hosted data.json
+DATA_URL = 'https://cdn.jsdelivr.net/gh/Fade32/side-quest-app@main/backend/data.json'
 DATA_FILE = 'data.json'
 
 def load_data():
-    if os.path.exists(DATA_FILE):
-        with open(DATA_FILE, 'r') as f:
-            return json.load(f)
+    try:
+        # Try to load from remote URL first
+        response = requests.get(DATA_URL, timeout=5)
+        response.raise_for_status()
+        return response.json()
+    except Exception as e:
+        print(f"Failed to load from remote URL: {e}")
+        # Fallback to local file
+        if os.path.exists(DATA_FILE):
+            with open(DATA_FILE, 'r') as f:
+                return json.load(f)
     return {'users': {}, 'friendships': [], 'groups': [], 'group_challenges': []}
 
 def save_data(data):
@@ -690,13 +700,26 @@ def get_group_leaderboard(group_id):
     return jsonify({'leaderboard': leaderboard}), 200
 
 # Serve frontend files
+FRONTEND_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'frontend')
+print(f"Frontend directory: {FRONTEND_DIR}")
+print(f"Frontend exists: {os.path.exists(FRONTEND_DIR)}")
+
 @app.route('/')
 def index():
-    return send_from_directory('../frontend', 'index.html')
+    print(f"Serving index.html from {FRONTEND_DIR}")
+    return send_from_directory(FRONTEND_DIR, 'index.html')
 
 @app.route('/<path:path>')
 def serve_static(path):
-    return send_from_directory('../frontend', path)
+    # Avoid serving API routes as static files
+    if path.startswith('api/'):
+        return jsonify({'error': 'Not found'}), 404
+    try:
+        print(f"Serving {path} from {FRONTEND_DIR}")
+        return send_from_directory(FRONTEND_DIR, path)
+    except Exception as e:
+        print(f"Error serving {path}: {e}")
+        return send_from_directory(FRONTEND_DIR, 'index.html')
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
