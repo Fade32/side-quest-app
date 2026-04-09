@@ -1,34 +1,65 @@
 from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
+from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime, timedelta
-import json
 import os
-import requests
+import json
 
 app = Flask(__name__)
-CORS(app)  # Enable CORS for all routes and origins
+CORS(app)
 
-# jsDelivr CDN URL for hosted data.json
-DATA_URL = 'https://cdn.jsdelivr.net/gh/Fade32/side-quest-app@main/backend/data.json'
-DATA_FILE = 'data.json'
+# PostgreSQL Configuration
+app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv(
+    'DATABASE_URL',
+    'postgresql://user:password@localhost:5432/side_quest'
+)
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
-def load_data():
-    try:
-        # Try to load from remote URL first
-        response = requests.get(DATA_URL, timeout=5)
-        response.raise_for_status()
-        return response.json()
-    except Exception as e:
-        print(f"Failed to load from remote URL: {e}")
-        # Fallback to local file
-        if os.path.exists(DATA_FILE):
-            with open(DATA_FILE, 'r') as f:
-                return json.load(f)
-    return {'users': {}, 'friendships': [], 'groups': [], 'group_challenges': []}
+db = SQLAlchemy(app)
 
-def save_data(data):
-    with open(DATA_FILE, 'w') as f:
-        json.dump(data, f, indent=2)
+# Database Models
+class User(db.Model):
+    __tablename__ = 'users'
+    id = db.Column(db.Integer, primary_key=True)
+    username = db.Column(db.String(80), unique=True, nullable=False)
+    password = db.Column(db.String(255), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.now)
+    group_points = db.relationship('GroupPoints', backref='user', cascade='all, delete-orphan')
+
+    def to_dict(self):
+        return {
+            'username': self.username,
+            'group_points': {gp.group_id: gp.points for gp in self.group_points}
+        }
+
+class Friendship(db.Model):
+    __tablename__ = 'friendships'
+    id = db.Column(db.Integer, primary_key=True)
+    user1 = db.Column(db.String(80), nullable=False)
+    user2 = db.Column(db.String(80), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.now)
+
+class Group(db.Model):
+    __tablename__ = 'groups'
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(120), nullable=False)
+    creator = db.Column(db.String(80), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.now)
+    challenges = db.relationship('GroupChallenge', backref='group', cascade='all, delete-orphan')
+
+class GroupChallenge(db.Model):
+    __tablename__ = 'group_challenges'
+    id = db.Column(db.Integer, primary_key=True)
+    group_id = db.Column(db.Integer, db.ForeignKey('groups.id'), nullable=False)
+    name = db.Column(db.String(120), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.now)
+
+class GroupPoints(db.Model):
+    __tablename__ = 'group_points'
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    group_id = db.Column(db.String(80), nullable=False)
+    points = db.Column(db.Integer, default=0)
 
 @app.route('/api/login', methods=['POST'])
 def login():
@@ -39,33 +70,26 @@ def login():
     if not username or not password:
         return jsonify({'error': 'Username and password required'}), 400
     
-    db = load_data()
+    user = User.query.filter_by(username=username).first()
     
-    if username in db['users']:
-        if db['users'][username]['password'] == password:
-            # Ensure user has group_points field (for existing users)
-            if 'group_points' not in db['users'][username]:
-                db['users'][username]['group_points'] = {}
-                save_data(db)
+    if user:
+        if user.password == password:
             return jsonify({
                 'success': True,
                 'message': 'Login successful',
-                'user': {'username': username, 'group_points': db['users'][username]['group_points']}
+                'user': user.to_dict()
             }), 200
         else:
             return jsonify({'error': 'Invalid password'}), 401
     else:
         # Create new user
-        db['users'][username] = {
-            'password': password,
-            'group_points': {},
-            'created_at': datetime.now().isoformat()
-        }
-        save_data(db)
+        new_user = User(username=username, password=password)
+        db.session.add(new_user)
+        db.session.commit()
         return jsonify({
             'success': True,
             'message': 'User created and logged in',
-            'user': {'username': username, 'group_points': {}}
+            'user': new_user.to_dict()
         }), 201
 
 @app.route('/api/friend/add', methods=['POST'])
