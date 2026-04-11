@@ -1,6 +1,8 @@
 # Side Quest App - Backend
 
-Flask-based REST API for managing sidequests and friends.
+Flask-based REST API for managing sidequests, friends, groups, and challenges.
+
+Persistence is now fully database-backed via SQLAlchemy. If `data.json` exists, `init_db.py` migrates it into the database.
 
 ## Setup
 
@@ -9,7 +11,12 @@ Flask-based REST API for managing sidequests and friends.
 pip install -r requirements.txt
 ```
 
-2. Run the server:
+2. Initialize database tables (and migrate legacy `data.json` if present):
+```bash
+python init_db.py
+```
+
+3. Run the server:
 ```bash
 python app.py
 ```

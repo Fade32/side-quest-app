@@ -1,4 +1,6 @@
-const API_URL = 'https://side-quest-app.onrender.com/api';
+const API_URL = window.location.protocol === 'file:'
+    ? 'http://127.0.0.1:5000/api'
+    : `${window.location.origin}/api`;
 let currentUser = null;
 let currentGroupId = null;
 let refreshInterval = null;
