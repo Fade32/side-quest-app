@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Side Quest App</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="app">
+    <header class="app-header">
+      <h1>⚔️ Side Quest Board</h1>
+      <p class="subtitle">Post quests, accept challenges, and claim glory!</p>
+    </header>
+
+    <!-- Add Quest Form -->
+    <section class="card add-quest">
+      <h2>📜 Post a New Side Quest</h2>
+      <form id="quest-form">
+        <div class="field">
+          <label for="quest-title">Quest Title</label>
+          <input
+            id="quest-title"
+            type="text"
+            placeholder="e.g. Defeat the Final Boss"
+            required
+          />
+        </div>
+        <div class="field">
+          <label for="quest-prompt">Quest Description / Prompt</label>
+          <textarea
+            id="quest-prompt"
+            rows="3"
+            placeholder="Describe the quest, its rewards, and any special rules…"
+            required
+          ></textarea>
+        </div>
+        <div class="field">
+          <label for="quest-reward">Reward (optional)</label>
+          <input
+            id="quest-reward"
+            type="text"
+            placeholder="e.g. 500 XP, a legendary sword"
+          />
+        </div>
+        <button type="submit" class="btn btn-post">Post Quest</button>
+      </form>
+    </section>
+
+    <!-- Quest Columns -->
+    <div class="board">
+      <!-- Available Quests -->
+      <section class="column" id="col-available">
+        <h2 class="column-title">🗺️ Available Quests</h2>
+        <ul class="quest-list" id="list-available">
+          <!-- Quests rendered by JS -->
+        </ul>
+        <p class="empty-msg" id="empty-available">No quests posted yet.</p>
+      </section>
+
+      <!-- Accepted Quests -->
+      <section class="column" id="col-accepted">
+        <h2 class="column-title">🛡️ Accepted Quests</h2>
+        <ul class="quest-list" id="list-accepted">
+          <!-- Quests rendered by JS -->
+        </ul>
+        <p class="empty-msg" id="empty-accepted">No quests accepted yet.</p>
+      </section>
+
+      <!-- Completed Quests -->
+      <section class="column" id="col-completed">
+        <h2 class="column-title">🏆 Completed Quests</h2>
+        <ul class="quest-list" id="list-completed">
+          <!-- Quests rendered by JS -->
+        </ul>
+        <p class="empty-msg" id="empty-completed">No quests completed yet.</p>
+      </section>
+    </div>
+  </div>
+
+  <!-- Quest Card Template -->
+  <template id="quest-card-template">
+    <li class="quest-card">
+      <div class="quest-card-header">
+        <h3 class="quest-card-title"></h3>
+        <span class="quest-status-badge"></span>
+      </div>
+      <p class="quest-card-prompt"></p>
+      <p class="quest-card-reward hidden"></p>
+      <div class="quest-card-actions"></div>
+    </li>
+  </template>
+
+  <script src="app.js"></script>
+</body>
+</html>
