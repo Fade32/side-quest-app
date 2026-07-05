@@ -19,6 +19,9 @@ if _db_url.startswith('postgresql'):
     _url = make_url(_db_url)
     _url = _url.set(drivername='postgresql+psycopg')
     app.config['SQLALCHEMY_DATABASE_URI'] = _url
+    app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
+        'connect_args': {'sslmode': 'require'}
+    }
 else:
     app.config['SQLALCHEMY_DATABASE_URI'] = _db_url
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
