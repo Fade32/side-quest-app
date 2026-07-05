@@ -956,9 +956,14 @@ def serve_static(path):
         return send_from_directory(FRONTEND_DIR, 'index.html')
 
 
+def _init_db():
+    db.create_all()
+    migrate_json_to_db()
+
+
+with app.app_context():
+    _init_db()
+
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
-    with app.app_context():
-        db.create_all()
-        migrate_json_to_db()
     app.run(host='0.0.0.0', port=port, debug=False)
