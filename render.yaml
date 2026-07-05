@@ -8,5 +8,3 @@ services:
     envVars:
       - key: PYTHON_VERSION
         value: 3.12.0
-      - key: DATABASE_URL
-        value: postgresql+psycopg://postgres:4Qo32%27in2s%5DQ@db.uiojghbuvgedkoooudlc.supabase.co:5432/postgres
