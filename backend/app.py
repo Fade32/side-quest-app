@@ -14,13 +14,24 @@ CORS(app)
 
 # Database configuration (PostgreSQL in production, SQLite for local dev fallback)
 _db_url = os.getenv('DATABASE_URL', 'sqlite:///side_quest.db')
+_db_final_url = _db_url
+
 if _db_url.startswith('postgresql'):
     from sqlalchemy.engine.url import make_url
     _url = make_url(_db_url)
     _url = _url.set(drivername='postgresql+psycopg')
-    app.config['SQLALCHEMY_DATABASE_URI'] = _url
-else:
-    app.config['SQLALCHEMY_DATABASE_URI'] = _db_url
+    _db_final_url = _url
+    try:
+        import psycopg
+        _test_conn = psycopg.connect(str(_url), connect_timeout=10)
+        _test_conn.close()
+        print("[DB] PostgreSQL connection OK")
+    except Exception as e:
+        print(f"[DB] PostgreSQL failed: {e}")
+        print("[DB] Falling back to SQLite")
+        _db_final_url = 'sqlite:///side_quest.db'
+
+app.config['SQLALCHEMY_DATABASE_URI'] = _db_final_url
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db = SQLAlchemy(app)
@@ -975,14 +986,7 @@ def _init_db():
 
 
 with app.app_context():
-    try:
-        _init_db()
-        print(f"[DB] Connected successfully: {app.config['SQLALCHEMY_DATABASE_URI']}")
-    except Exception as e:
-        print(f"[DB] Failed to connect: {e}")
-        print(f"[DB] Falling back to SQLite...")
-        app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///side_quest.db'
-        _init_db()
+    _init_db()
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
