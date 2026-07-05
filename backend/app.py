@@ -956,9 +956,18 @@ def serve_static(path):
         return send_from_directory(FRONTEND_DIR, 'index.html')
 
 
+def _upgrade_plaintext_passwords():
+    users = User.query.all()
+    for user in users:
+        if not user.password.startswith('scrypt:'):
+            user.password = generate_password_hash(user.password)
+    db.session.commit()
+
+
 def _init_db():
     db.create_all()
     migrate_json_to_db()
+    _upgrade_plaintext_passwords()
 
 
 with app.app_context():

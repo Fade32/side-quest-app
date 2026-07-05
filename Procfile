@@ -1,1 +1,1 @@
-web: cd backend && gunicorn app:app --bind 0.0.0.0:$PORT --workers 2
+web: pip install -r backend/requirements.txt && gunicorn backend.app:app --bind 0.0.0.0:$PORT --workers 1 --timeout 120
