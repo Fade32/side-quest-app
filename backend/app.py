@@ -13,10 +13,14 @@ app = Flask(__name__)
 CORS(app)
 
 # Database configuration (PostgreSQL in production, SQLite for local dev fallback)
-app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv(
-    'DATABASE_URL',
-    'sqlite:///side_quest.db'
-)
+_db_url = os.getenv('DATABASE_URL', 'sqlite:///side_quest.db')
+if _db_url.startswith('postgresql'):
+    from sqlalchemy.engine.url import make_url
+    _url = make_url(_db_url)
+    _url = _url.set(drivername='postgresql+psycopg')
+    app.config['SQLALCHEMY_DATABASE_URI'] = _url
+else:
+    app.config['SQLALCHEMY_DATABASE_URI'] = _db_url
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db = SQLAlchemy(app)
