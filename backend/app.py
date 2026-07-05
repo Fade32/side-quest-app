@@ -26,6 +26,7 @@ if _db_url.startswith('postgresql'):
         _info = f"host={_url.host} port={_url.port} dbname={_url.database} user={_url.username} password={_url.password} sslmode=require connect_timeout=10"
         _test_conn = psycopg.connect(_info)
         _test_conn.close()
+        app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {'connect_args': {'sslmode': 'require'}}
         print("[DB] PostgreSQL connection OK")
     except Exception as e:
         print(f"[DB] PostgreSQL failed: {e}")
