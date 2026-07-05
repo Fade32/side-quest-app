@@ -24,6 +24,8 @@ if _db_url.startswith('postgresql'):
     try:
         import psycopg
         _info = f"host={_url.host} port={_url.port} dbname={_url.database} user={_url.username} password={_url.password} sslmode=require connect_timeout=10"
+        if 'pooler.supabase.com' in _url.host:
+            _info += f" external_id=uiojghbuvgedkoooudlc"
         _test_conn = psycopg.connect(_info)
         _test_conn.close()
         print("[DB] PostgreSQL connection OK")
