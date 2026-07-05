@@ -5,6 +5,12 @@ let currentUser = null;
 let currentGroupId = null;
 let refreshInterval = null;
 
+function escapeHtml(str) {
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+}
+
 // Show message to user
 function showMessage(text, type = 'success') {
     const messageEl = document.getElementById('message');
@@ -26,9 +32,10 @@ function startAutoRefresh() {
     // Refresh every 5 seconds
     refreshInterval = setInterval(() => {
         if (currentUser) {
-            // Refresh friends and groups lists
+            updatePoints();
             loadFriends();
             loadGroups();
+            loadSideQuests();
             
             // If a group modal is open, refresh its data
             if (currentGroupId && !document.getElementById('group-modal').classList.contains('hidden')) {
@@ -96,6 +103,8 @@ async function login() {
             showMessage(data.message);
             loadFriends();
             loadGroups();
+            loadSideQuests();
+            updatePoints();
             startAutoRefresh(); // Start auto-refresh after login
         } else {
             showMessage(data.error, 'error');
@@ -168,7 +177,7 @@ async function loadFriends() {
         
         listEl.innerHTML = data.friends.map(friend => `
             <div class="friend-item">
-                <div>👤 ${friend}</div>
+                <div>👤 ${escapeHtml(friend)}</div>
             </div>
         `).join('');
     } catch (error) {
@@ -188,6 +197,117 @@ async function updatePoints() {
         }
     } catch (error) {
         console.error('Error updating points:', error);
+    }
+}
+
+// Add side quest
+async function addSideQuest() {
+    const title = document.getElementById('sidequest-title').value.trim();
+    const description = document.getElementById('sidequest-description').value.trim();
+
+    if (!title) {
+        showMessage('Please enter a quest title', 'error');
+        return;
+    }
+
+    try {
+        const response = await fetch(`${API_URL}/sidequest/add`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username: currentUser, title, description })
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+            showMessage('Side quest added!');
+            document.getElementById('sidequest-title').value = '';
+            document.getElementById('sidequest-description').value = '';
+            loadSideQuests();
+        } else {
+            showMessage(data.error, 'error');
+        }
+    } catch (error) {
+        showMessage('Error adding side quest', 'error');
+        console.error('Error:', error);
+    }
+}
+
+// Complete side quest
+async function completeSideQuest(questId) {
+    try {
+        const response = await fetch(`${API_URL}/sidequest/${questId}/complete`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username: currentUser })
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+            showMessage(data.message);
+            loadSideQuests();
+            updatePoints();
+        } else {
+            showMessage(data.error, 'error');
+        }
+    } catch (error) {
+        showMessage('Error completing side quest', 'error');
+        console.error('Error:', error);
+    }
+}
+
+// Delete side quest
+async function deleteSideQuest(questId) {
+    try {
+        const response = await fetch(`${API_URL}/sidequest/${questId}/delete`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username: currentUser })
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+            showMessage('Side quest deleted');
+            loadSideQuests();
+        } else {
+            showMessage(data.error, 'error');
+        }
+    } catch (error) {
+        showMessage('Error deleting side quest', 'error');
+        console.error('Error:', error);
+    }
+}
+
+// Load side quests
+async function loadSideQuests() {
+    try {
+        const response = await fetch(`${API_URL}/sidequests/${currentUser}`);
+        const data = await response.json();
+
+        const listEl = document.getElementById('sidequests-list');
+
+        if (data.sidequests.length === 0) {
+            listEl.innerHTML = '<div class="empty-state">No side quests yet. Add one!</div>';
+            return;
+        }
+
+        listEl.innerHTML = data.sidequests.map(quest => `
+            <div class="quest-item ${quest.completed ? 'completed' : ''}">
+                <div class="quest-info">
+                    <div class="quest-title">${escapeHtml(quest.title)}</div>
+                    ${quest.description ? `<div class="quest-description">${escapeHtml(quest.description)}</div>` : ''}
+                    <div class="quest-status">${quest.completed ? '✅ Completed' : '⏳ Active'} • ${new Date(quest.created_at).toLocaleDateString()}</div>
+                </div>
+                <div style="display: flex; gap: 8px;">
+                    ${!quest.completed ? `<button class="complete-btn" onclick="completeSideQuest(${quest.id})">✓ Complete</button>` : ''}
+                    <button class="reject-btn" onclick="deleteSideQuest(${quest.id})" style="padding: 8px 12px; font-size: 14px;">🗑</button>
+                </div>
+            </div>
+        `).join('');
+    } catch (error) {
+        console.error('Error loading side quests:', error);
     }
 }
 
@@ -252,10 +372,10 @@ async function loadGroups() {
         
         listEl.innerHTML = data.groups.map(group => `
             <div class="group-item" onclick="openGroupModal(${group.id})">
-                <div class="group-name">${group.name}</div>
+                <div class="group-name">${escapeHtml(group.name)}</div>
                 <div class="group-info">
                     ${group.members.length} member(s) • 
-                    Creator: ${group.creator}
+                    Creator: ${escapeHtml(group.creator)}
                 </div>
             </div>
         `).join('');
@@ -289,7 +409,7 @@ async function openGroupModal(groupId) {
         
         // Display members
         const membersHtml = group.members.map(member => 
-            `<span class="member-item ${member === group.creator ? 'creator' : ''}">${member}${member === group.creator ? ' 👑' : ''}</span>`
+            `<span class="member-item ${member === group.creator ? 'creator' : ''}">${escapeHtml(member)}${member === group.creator ? ' 👑' : ''}</span>`
         ).join('');
         document.getElementById('modal-members-list').innerHTML = membersHtml;
         
@@ -333,7 +453,7 @@ async function loadFriendsForGroup(existingMembers) {
         }
         
         selectEl.innerHTML = '<option value="">Select a friend to add</option>' +
-            availableFriends.map(friend => `<option value="${friend}">${friend}</option>`).join('');
+            availableFriends.map(friend => `<option value="${escapeHtml(friend)}">${escapeHtml(friend)}</option>`).join('');
     } catch (error) {
         console.error('Error:', error);
     }
@@ -371,48 +491,6 @@ async function addGroupMember() {
         }
     } catch (error) {
         showMessage('Error adding member', 'error');
-        console.error('Error:', error);
-    }
-}
-
-// Create group challenge
-async function createGroupChallenge() {
-    // Deprecated - keeping for reference
-    const title = document.getElementById('modal-challenge-title').value.trim();
-    const description = document.getElementById('modal-challenge-description').value.trim();
-    const difficulty = document.getElementById('modal-challenge-difficulty').value;
-    
-    if (!title) {
-        showMessage('Please enter a challenge title', 'error');
-        return;
-    }
-    
-    try {
-        const response = await fetch(`${API_URL}/group/${currentGroupId}/challenge/create`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                title,
-                description,
-                difficulty
-            })
-        });
-        
-        const data = await response.json();
-        
-        if (response.ok) {
-            showMessage(data.message);
-            document.getElementById('modal-challenge-title').value = '';
-            document.getElementById('modal-challenge-description').value = '';
-            document.getElementById('modal-challenge-difficulty').value = 'easy';
-            loadGroupChallenges(currentGroupId);
-        } else {
-            showMessage(data.error, 'error');
-        }
-    } catch (error) {
-        showMessage('Error creating group challenge', 'error');
         console.error('Error:', error);
     }
 }
@@ -550,7 +628,6 @@ async function loadGroupChallenges(groupId) {
         }
         
         listEl.innerHTML = activeChallenges.map(challenge => {
-            // If challenge is awaiting creation
             if (challenge.status === 'awaiting_creation') {
                 if (challenge.challenger === currentUser) {
                     return `
@@ -567,13 +644,12 @@ async function loadGroupChallenges(groupId) {
                             <div class="challenge-header">
                                 <div class="challenge-title">⏳ Waiting for challenge...</div>
                             </div>
-                            <p><strong>${challenge.challenger}</strong> was randomly chosen to create the next challenge!</p>
+                            <p><strong>${escapeHtml(challenge.challenger)}</strong> was randomly chosen to create the next challenge!</p>
                         </div>
                     `;
                 }
             }
             
-            // Active challenges
             const userSubmission = challenge.submissions.find(s => s.username === currentUser);
             const isChallenger = challenge.challenger === currentUser;
             
@@ -581,13 +657,13 @@ async function loadGroupChallenges(groupId) {
                 <div class="challenge-item">
                     <div class="challenge-header">
                         <div class="challenge-title">
-                            ${challenge.title}
-                            <span class="difficulty-badge ${challenge.difficulty}">${challenge.difficulty.toUpperCase()} - ${challenge.points} pts</span>
+                            ${escapeHtml(challenge.title)}
+                            <span class="difficulty-badge ${escapeHtml(challenge.difficulty)}">${escapeHtml((challenge.difficulty || '').toUpperCase())} - ${challenge.points} pts</span>
                         </div>
                     </div>
-                    ${challenge.description ? `<div class="challenge-description">${challenge.description}</div>` : ''}
+                    ${challenge.description ? `<div class="challenge-description">${escapeHtml(challenge.description)}</div>` : ''}
                     <div class="challenge-meta">
-                        Created by: <strong>${challenge.challenger}</strong> • 
+                        Created by: <strong>${escapeHtml(challenge.challenger)}</strong> • 
                         ${new Date(challenge.challenge_created_at).toLocaleDateString()}
                         ${challenge.deadline ? ` • ⏰ Deadline: ${new Date(challenge.deadline).toLocaleString()}` : ''}
                     </div>
@@ -625,14 +701,14 @@ async function loadGroupChallenges(groupId) {
                             ${challenge.submissions.map(sub => `
                                 <div class="submission-item ${sub.status}">
                                     <div class="submission-header">
-                                        <span class="submission-user">${sub.username}</span>
+                                        <span class="submission-user">${escapeHtml(sub.username)}</span>
                                         <span class="challenge-status ${sub.status}">${sub.status.toUpperCase()}</span>
                                     </div>
                                     <img src="${sub.proof_image}" class="proof-image" alt="Proof" onclick="window.open('${sub.proof_image}', '_blank')">
                                     ${sub.status === 'pending' ? `
                                         <div class="submission-actions">
-                                            <button class="accept-btn" onclick="reviewGroupSubmission(${challenge.id}, '${sub.username}', true)">✓ Accept</button>
-                                            <button class="reject-btn" onclick="reviewGroupSubmission(${challenge.id}, '${sub.username}', false)">✗ Reject</button>
+                                            <button class="accept-btn" onclick="reviewGroupSubmission(${challenge.id}, '${escapeHtml(sub.username).replace(/'/g, "\\'")}', true)">✓ Accept</button>
+                                            <button class="reject-btn" onclick="reviewGroupSubmission(${challenge.id}, '${escapeHtml(sub.username).replace(/'/g, "\\'")}', false)">✗ Reject</button>
                                         </div>
                                     ` : ''}
                                 </div>
@@ -754,7 +830,7 @@ async function loadGroupLeaderboard(groupId) {
             return `
                 <div class="leaderboard-item rank-${rank > 3 ? 'other' : rank}">
                     <span class="leaderboard-rank">${medal || rank}</span>
-                    <span class="leaderboard-username">${entry.username}${entry.username === currentUser ? ' (You)' : ''}</span>
+                    <span class="leaderboard-username">${escapeHtml(entry.username)}${entry.username === currentUser ? ' (You)' : ''}</span>
                     <span class="leaderboard-points">${entry.points} pts</span>
                 </div>
             `;
@@ -765,37 +841,4 @@ async function loadGroupLeaderboard(groupId) {
     }
 }
 
-// Load leaderboard (DEPRECATED - keeping for compatibility)
-async function loadLeaderboard() {
-    try {
-        const response = await fetch(`${API_URL}/leaderboard`);
-        const data = await response.json();
-        
-        const listEl = document.getElementById('leaderboard-list');
-        
-        if (data.leaderboard.length === 0) {
-            listEl.innerHTML = '<div class="empty-state">No scores yet</div>';
-            return;
-        }
-        
-        listEl.innerHTML = data.leaderboard.map((entry, index) => {
-            const rank = index + 1;
-            let medal = '';
-            if (rank === 1) medal = '🥇';
-            else if (rank === 2) medal = '🥈';
-            else if (rank === 3) medal = '🥉';
-            
-            return `
-                <div class="leaderboard-item rank-${rank > 3 ? 'other' : rank}">
-                    <span class="leaderboard-rank">${medal || rank}</span>
-                    <span class="leaderboard-username">${entry.username}${entry.username === currentUser ? ' (You)' : ''}</span>
-                    <span class="leaderboard-points">${entry.points} pts</span>
-                </div>
-            `;
-        }).join('');
-    } catch (error) {
-        showMessage('Error loading leaderboard', 'error');
-        console.error('Error:', error);
-    }
-}
 

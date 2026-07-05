@@ -25,6 +25,7 @@
             <div class="user-info">
                 <div>
                     <h2>Welcome, <span id="current-user"></span>!</h2>
+                    <div class="points-display">⭐ Total Points: <span id="user-points">0</span></div>
                 </div>
                 <button onclick="logout()" class="logout-btn">Logout</button>
             </div>
@@ -57,6 +58,17 @@
             <div class="card">
                 <h3>🏠 My Groups</h3>
                 <div id="groups-list"></div>
+            </div>
+
+            <!-- Side Quests -->
+            <div class="card">
+                <h3>📋 My Side Quests</h3>
+                <div class="form-group">
+                    <input type="text" id="sidequest-title" placeholder="Quest Title" />
+                    <input type="text" id="sidequest-description" placeholder="Description (optional)" />
+                    <button onclick="addSideQuest()">Add Side Quest</button>
+                </div>
+                <div id="sidequests-list"></div>
             </div>
         </div>
 

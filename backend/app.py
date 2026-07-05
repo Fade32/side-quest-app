@@ -3,6 +3,8 @@ from flask_cors import CORS
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import and_, or_, func
 from datetime import datetime, timedelta
+from werkzeug.security import generate_password_hash, check_password_hash
+import re
 import os
 import json
 import random
@@ -182,6 +184,21 @@ class GroupPoints(db.Model):
     __table_args__ = (db.UniqueConstraint('user_id', 'group_id', name='uq_group_points_user_group'),)
 
 
+def _sanitize(s, max_len=255):
+    if not isinstance(s, str):
+        return s
+    s = s.strip()
+    if max_len and len(s) > max_len:
+        s = s[:max_len]
+    return s
+
+
+def _is_valid_username(username):
+    if not username or not isinstance(username, str):
+        return False
+    return bool(re.match(r'^[a-zA-Z0-9_\-]{1,30}$', username))
+
+
 def _get_user(username):
     return User.query.filter_by(username=username).first()
 
@@ -235,7 +252,10 @@ def migrate_json_to_db():
     users = data.get('users', {})
     for username, payload in users.items():
         if not _get_user(username):
-            db.session.add(User(username=username, password=payload.get('password', '')))
+            pw = payload.get('password', '')
+            if not pw.startswith('scrypt:'):
+                pw = generate_password_hash(pw)
+            db.session.add(User(username=username, password=pw))
     db.session.commit()
 
     for username, payload in users.items():
@@ -353,19 +373,23 @@ def migrate_json_to_db():
 @app.route('/api/login', methods=['POST'])
 def login():
     data = request.json
-    username = data.get('username')
-    password = data.get('password')
+    username = _sanitize(data.get('username', ''), max_len=30)
+    password = data.get('password', '')
 
     if not username or not password:
         return jsonify({'error': 'Username and password required'}), 400
+    if not _is_valid_username(username):
+        return jsonify({'error': 'Username must be 1-30 chars (letters, numbers, _ and -)'}), 400
+    if len(password) < 3:
+        return jsonify({'error': 'Password must be at least 3 characters'}), 400
 
     user = _get_user(username)
     if user:
-        if user.password == password:
+        if check_password_hash(user.password, password):
             return jsonify({'success': True, 'message': 'Login successful', 'user': user.to_dict()}), 200
         return jsonify({'error': 'Invalid password'}), 401
 
-    user = User(username=username, password=password)
+    user = User(username=username, password=generate_password_hash(password))
     db.session.add(user)
     db.session.commit()
     return jsonify({'success': True, 'message': 'User created and logged in', 'user': user.to_dict()}), 201
@@ -374,8 +398,8 @@ def login():
 @app.route('/api/friend/add', methods=['POST'])
 def add_friend():
     data = request.json
-    username = data.get('username')
-    friend_username = data.get('friend_username')
+    username = _sanitize(data.get('username', ''), max_len=30)
+    friend_username = _sanitize(data.get('friend_username', ''), max_len=30)
 
     if not username or not friend_username:
         return jsonify({'error': 'Username and friend username required'}), 400
@@ -416,6 +440,59 @@ def get_sidequests(username):
     return jsonify({'sidequests': [q.to_dict() for q in quests]}), 200
 
 
+@app.route('/api/sidequest/add', methods=['POST'])
+def add_sidequest():
+    data = request.json
+    username = _sanitize(data.get('username', ''), max_len=30)
+    title = _sanitize(data.get('title', ''), max_len=120)
+    description = _sanitize(data.get('description', ''), max_len=500)
+
+    if not username or not title:
+        return jsonify({'error': 'Username and title required'}), 400
+    if not _get_user(username):
+        return jsonify({'error': 'User not found'}), 404
+
+    quest = SideQuest(username=username, title=title, description=description)
+    db.session.add(quest)
+    db.session.commit()
+    return jsonify({'success': True, 'message': 'Side quest created!', 'sidequest': quest.to_dict()}), 201
+
+
+@app.route('/api/sidequest/<int:quest_id>/complete', methods=['POST'])
+def complete_sidequest(quest_id):
+    data = request.json
+    username = _sanitize(data.get('username', ''), max_len=30)
+
+    quest = SideQuest.query.filter_by(id=quest_id).first()
+    if not quest:
+        return jsonify({'error': 'SideQuest not found'}), 404
+    if quest.username != username:
+        return jsonify({'error': 'Not your side quest'}), 403
+    if quest.completed:
+        return jsonify({'error': 'Already completed'}), 400
+
+    quest.completed = True
+    _award_user_points(username, 5)
+    db.session.commit()
+    return jsonify({'success': True, 'message': 'Side quest completed! +5 pts', 'sidequest': quest.to_dict()}), 200
+
+
+@app.route('/api/sidequest/<int:quest_id>/delete', methods=['POST'])
+def delete_sidequest(quest_id):
+    data = request.json
+    username = _sanitize(data.get('username', ''), max_len=30)
+
+    quest = SideQuest.query.filter_by(id=quest_id).first()
+    if not quest:
+        return jsonify({'error': 'SideQuest not found'}), 404
+    if quest.username != username:
+        return jsonify({'error': 'Not your side quest'}), 403
+
+    db.session.delete(quest)
+    db.session.commit()
+    return jsonify({'success': True, 'message': 'Side quest deleted'}), 200
+
+
 @app.route('/api/friends/<username>', methods=['GET'])
 def get_friends(username):
     friendships = Friendship.query.filter(
@@ -428,11 +505,11 @@ def get_friends(username):
 @app.route('/api/challenge/create', methods=['POST'])
 def create_challenge():
     data = request.json
-    challenger = data.get('challenger')
-    challenged = data.get('challenged')
-    title = data.get('title')
-    description = data.get('description', '')
-    difficulty = data.get('difficulty', 'easy')
+    challenger = _sanitize(data.get('challenger', ''), max_len=30)
+    challenged = _sanitize(data.get('challenged', ''), max_len=30)
+    title = _sanitize(data.get('title', ''), max_len=120)
+    description = _sanitize(data.get('description', ''), max_len=500)
+    difficulty = _sanitize(data.get('difficulty', 'easy'), max_len=20)
 
     if not challenger or not challenged or not title:
         return jsonify({'error': 'Challenger, challenged user, and title required'}), 400
@@ -472,7 +549,7 @@ def create_challenge():
 def upload_proof():
     data = request.json
     challenge_id = data.get('challenge_id')
-    username = data.get('username')
+    username = _sanitize(data.get('username', ''), max_len=30)
     proof_image = data.get('proof_image')
 
     if not challenge_id or not username or not proof_image:
@@ -495,7 +572,7 @@ def upload_proof():
 def review_challenge():
     data = request.json
     challenge_id = data.get('challenge_id')
-    username = data.get('username')
+    username = _sanitize(data.get('username', ''), max_len=30)
     accept = data.get('accept')
 
     if not challenge_id or not username or accept is None:
@@ -555,8 +632,8 @@ def get_user_points(username):
 @app.route('/api/group/create', methods=['POST'])
 def create_group():
     data = request.json
-    creator = data.get('creator')
-    name = data.get('name')
+    creator = _sanitize(data.get('creator', ''), max_len=30)
+    name = _sanitize(data.get('name', ''), max_len=120)
 
     if not creator or not name:
         return jsonify({'error': 'Creator and group name required'}), 400
@@ -575,8 +652,8 @@ def create_group():
 @app.route('/api/group/<int:group_id>/add-member', methods=['POST'])
 def add_group_member(group_id):
     data = request.json
-    username = data.get('username')
-    member_to_add = data.get('member')
+    username = _sanitize(data.get('username', ''), max_len=30)
+    member_to_add = _sanitize(data.get('member', ''), max_len=30)
 
     if not username or not member_to_add:
         return jsonify({'error': 'Username and member required'}), 400
@@ -648,10 +725,10 @@ def pick_random_challenger(group_id):
 @app.route('/api/group-challenge/<int:challenge_id>/define', methods=['POST'])
 def define_group_challenge(challenge_id):
     data = request.json
-    username = data.get('username')
-    title = data.get('title')
-    description = data.get('description', '')
-    difficulty = data.get('difficulty', 'easy')
+    username = _sanitize(data.get('username', ''), max_len=30)
+    title = _sanitize(data.get('title', ''), max_len=120)
+    description = _sanitize(data.get('description', ''), max_len=500)
+    difficulty = _sanitize(data.get('difficulty', 'easy'), max_len=20)
 
     if not username or not title:
         return jsonify({'error': 'Username and title required'}), 400
@@ -724,7 +801,7 @@ def create_group_challenge(group_id):
 @app.route('/api/group-challenge/<int:challenge_id>/submit', methods=['POST'])
 def submit_group_challenge(challenge_id):
     data = request.json
-    username = data.get('username')
+    username = _sanitize(data.get('username', ''), max_len=30)
     proof_image = data.get('proof_image')
 
     if not username or not proof_image:
@@ -760,8 +837,8 @@ def submit_group_challenge(challenge_id):
 @app.route('/api/group-challenge/<int:challenge_id>/review', methods=['POST'])
 def review_group_submission(challenge_id):
     data = request.json
-    reviewer = data.get('reviewer')
-    target_username = data.get('target_username')
+    reviewer = _sanitize(data.get('reviewer', ''), max_len=30)
+    target_username = _sanitize(data.get('target_username', ''), max_len=30)
     accept = data.get('accept')
 
     if not reviewer or not target_username or accept is None:

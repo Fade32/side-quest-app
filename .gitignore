@@ -1,0 +1,12 @@
+.env
+.env.local
+__pycache__/
+*.pyc
+*.pyo
+.DS_Store
+node_modules/
+.idea/
+venv/
+env/
+instance/
+*.db
