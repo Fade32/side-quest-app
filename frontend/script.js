@@ -177,7 +177,7 @@ async function loadFriends() {
         
         listEl.innerHTML = data.friends.map(friend => `
             <div class="friend-item">
-                <div>👤 ${escapeHtml(friend)}</div>
+                <div>${escapeHtml(friend)}</div>
             </div>
         `).join('');
     } catch (error) {
@@ -298,11 +298,11 @@ async function loadSideQuests() {
                 <div class="quest-info">
                     <div class="quest-title">${escapeHtml(quest.title)}</div>
                     ${quest.description ? `<div class="quest-description">${escapeHtml(quest.description)}</div>` : ''}
-                    <div class="quest-status">${quest.completed ? '✅ Completed' : '⏳ Active'} • ${new Date(quest.created_at).toLocaleDateString()}</div>
+                    <div class="quest-status">${quest.completed ? 'Completed' : 'Active'} • ${new Date(quest.created_at).toLocaleDateString()}</div>
                 </div>
-                <div style="display: flex; gap: 8px;">
-                    ${!quest.completed ? `<button class="complete-btn" onclick="completeSideQuest(${quest.id})">✓ Complete</button>` : ''}
-                    <button class="reject-btn" onclick="deleteSideQuest(${quest.id})" style="padding: 8px 12px; font-size: 14px;">🗑</button>
+                <div class="btn-row">
+                    ${!quest.completed ? `<button class="complete-btn btn-sm" onclick="completeSideQuest(${quest.id})">Complete</button>` : ''}
+                    <button class="reject-btn btn-sm" onclick="deleteSideQuest(${quest.id})">Delete</button>
                 </div>
             </div>
         `).join('');
@@ -409,7 +409,7 @@ async function openGroupModal(groupId) {
         
         // Display members
         const membersHtml = group.members.map(member => 
-            `<span class="member-item ${member === group.creator ? 'creator' : ''}">${escapeHtml(member)}${member === group.creator ? ' 👑' : ''}</span>`
+            `<span class="member-item ${member === group.creator ? 'creator' : ''}">${escapeHtml(member)}${member === group.creator ? ' [Host]' : ''}</span>`
         ).join('');
         document.getElementById('modal-members-list').innerHTML = membersHtml;
         
@@ -530,13 +530,13 @@ async function checkChallengeCreationStatus(groupId) {
         if (!data.can_create) {
             // Disable button and show countdown
             button.disabled = true;
-            button.innerHTML = `🎲 Next Challenge in ${data.hours_remaining}h ${data.minutes_remaining}m`;
+            button.innerHTML = `Next Challenge in ${data.hours_remaining}h ${data.minutes_remaining}m`;
             button.style.opacity = '0.6';
             button.style.cursor = 'not-allowed';
         } else {
             // Enable button
             button.disabled = false;
-            button.innerHTML = '🎲 Pick Random Member to Create Challenge';
+            button.innerHTML = 'Pick Random Member to Create Challenge';
             button.style.opacity = '1';
             button.style.cursor = 'pointer';
         }
@@ -631,28 +631,28 @@ async function loadGroupChallenges(groupId) {
             if (challenge.status === 'awaiting_creation') {
                 if (challenge.challenger === currentUser) {
                     return `
-                        <div class="challenge-item" style="border-left-color: #ffa500;">
+                        <div class="challenge-item" style="border-left-color: var(--warning);">
                             <div class="challenge-header">
-                                <div class="challenge-title">⏳ You need to create a challenge!</div>
+                                <div class="challenge-title">You need to create a challenge!</div>
                             </div>
-                            <p>Fill out the form above to create the challenge for your group.</p>
+                            <p class="challenge-description">Fill out the form above to create the challenge for your group.</p>
                         </div>
                     `;
                 } else {
                     return `
-                        <div class="challenge-item" style="border-left-color: #ffa500;">
+                        <div class="challenge-item" style="border-left-color: var(--warning);">
                             <div class="challenge-header">
-                                <div class="challenge-title">⏳ Waiting for challenge...</div>
+                                <div class="challenge-title">Waiting for challenge...</div>
                             </div>
-                            <p><strong>${escapeHtml(challenge.challenger)}</strong> was randomly chosen to create the next challenge!</p>
+                            <p class="challenge-description"><strong>${escapeHtml(challenge.challenger)}</strong> was randomly chosen to create the next challenge!</p>
                         </div>
                     `;
                 }
             }
-            
+
             const userSubmission = challenge.submissions.find(s => s.username === currentUser);
             const isChallenger = challenge.challenger === currentUser;
-            
+
             return `
                 <div class="challenge-item">
                     <div class="challenge-header">
@@ -665,17 +665,17 @@ async function loadGroupChallenges(groupId) {
                     <div class="challenge-meta">
                         Created by: <strong>${escapeHtml(challenge.challenger)}</strong> • 
                         ${new Date(challenge.challenge_created_at).toLocaleDateString()}
-                        ${challenge.deadline ? ` • ⏰ Deadline: ${new Date(challenge.deadline).toLocaleString()}` : ''}
+                        ${challenge.deadline ? ` • Deadline: ${new Date(challenge.deadline).toLocaleString()}` : ''}
                     </div>
                     
                     ${!userSubmission && !isChallenger ? `
                         <div class="challenge-actions">
-                            <button class="upload-btn" onclick="submitGroupProof(${challenge.id})">📷 Submit Proof</button>
+                            <button class="upload-btn" onclick="submitGroupProof(${challenge.id})">Submit Proof</button>
                         </div>
                     ` : ''}
                     
                     ${isChallenger ? `
-                        <div style="padding: 10px; background: #fff3cd; border-radius: 6px; margin-top: 10px;">
+                        <div class="challenger-notice">
                             <strong>You created this challenge!</strong> Review submissions below.
                         </div>
                     ` : ''}
@@ -688,8 +688,8 @@ async function loadGroupChallenges(groupId) {
                             </div>
                             <img src="${userSubmission.proof_image}" class="proof-image" alt="Your proof" onclick="window.open('${userSubmission.proof_image}', '_blank')">
                             ${userSubmission.status === 'accepted' ? `
-                                <div style="color: #28a745; font-weight: 600; margin-top: 8px;">
-                                    ✅ You earned ${challenge.points} points!
+                                <div class="earned-points">
+                                    You earned ${challenge.points} points!
                                 </div>
                             ` : ''}
                         </div>
@@ -697,7 +697,7 @@ async function loadGroupChallenges(groupId) {
                     
                     ${isChallenger && challenge.submissions.length > 0 ? `
                         <div style="margin-top: 15px;">
-                            <strong>Submissions to review:</strong>
+                            <strong style="color: var(--text-secondary);">Submissions to review:</strong>
                             ${challenge.submissions.map(sub => `
                                 <div class="submission-item ${sub.status}">
                                     <div class="submission-header">
@@ -707,8 +707,8 @@ async function loadGroupChallenges(groupId) {
                                     <img src="${sub.proof_image}" class="proof-image" alt="Proof" onclick="window.open('${sub.proof_image}', '_blank')">
                                     ${sub.status === 'pending' ? `
                                         <div class="submission-actions">
-                                            <button class="accept-btn" onclick="reviewGroupSubmission(${challenge.id}, '${escapeHtml(sub.username).replace(/'/g, "\\'")}', true)">✓ Accept</button>
-                                            <button class="reject-btn" onclick="reviewGroupSubmission(${challenge.id}, '${escapeHtml(sub.username).replace(/'/g, "\\'")}', false)">✗ Reject</button>
+                                            <button class="accept-btn" onclick="reviewGroupSubmission(${challenge.id}, '${escapeHtml(sub.username).replace(/'/g, "\\'")}', true)">Accept</button>
+                                            <button class="reject-btn" onclick="reviewGroupSubmission(${challenge.id}, '${escapeHtml(sub.username).replace(/'/g, "\\'")}', false)">Reject</button>
                                         </div>
                                     ` : ''}
                                 </div>
@@ -717,7 +717,7 @@ async function loadGroupChallenges(groupId) {
                     ` : ''}
                     
                     ${isChallenger && challenge.submissions.length === 0 ? `
-                        <div style="padding: 10px; background: #f8f9fa; border-radius: 6px; margin-top: 10px; text-align: center; color: #666;">
+                        <div class="no-submissions">
                             No submissions yet. Waiting for group members to submit proof...
                         </div>
                     ` : ''}
@@ -794,7 +794,7 @@ async function reviewGroupSubmission(challengeId, targetUsername, accept) {
         const data = await response.json();
         
         if (response.ok) {
-            showMessage(accept ? 'Submission accepted! 🎉' : 'Submission rejected');
+            showMessage(accept ? 'Submission accepted!' : 'Submission rejected');
             updateUserPoints(currentGroupId); // Update points immediately
             loadGroupChallenges(currentGroupId);
             loadGroupLeaderboard(currentGroupId);
@@ -823,9 +823,9 @@ async function loadGroupLeaderboard(groupId) {
         listEl.innerHTML = data.leaderboard.map((entry, index) => {
             const rank = index + 1;
             let medal = '';
-            if (rank === 1) medal = '🥇';
-            else if (rank === 2) medal = '🥈';
-            else if (rank === 3) medal = '🥉';
+            if (rank === 1) medal = '1';
+            else if (rank === 2) medal = '2';
+            else if (rank === 3) medal = '3';
             
             return `
                 <div class="leaderboard-item rank-${rank > 3 ? 'other' : rank}">

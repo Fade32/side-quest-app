@@ -8,7 +8,7 @@
 </head>
 <body>
     <div class="container">
-        <h1>🎮 Side Quest App</h1>
+        <h1>Side Quest App</h1>
         
         <!-- Login Section -->
         <div id="login-section" class="section">
@@ -25,14 +25,14 @@
             <div class="user-info">
                 <div>
                     <h2>Welcome, <span id="current-user"></span>!</h2>
-                    <div class="points-display">⭐ Total Points: <span id="user-points">0</span></div>
+                    <div class="points-display">Total Points: <span id="user-points">0</span></div>
                 </div>
                 <button onclick="logout()" class="logout-btn">Logout</button>
             </div>
 
             <!-- Add Friend -->
             <div class="card">
-                <h3>👥 Add Friend</h3>
+                <h3>Add Friend</h3>
                 <div class="form-group">
                     <input type="text" id="friend-username" placeholder="Friend's Username" />
                     <button onclick="addFriend()">Add Friend</button>
@@ -41,13 +41,13 @@
 
             <!-- Friends List -->
             <div class="card">
-                <h3>🤝 My Friends</h3>
+                <h3>My Friends</h3>
                 <div id="friends-list"></div>
             </div>
 
             <!-- Create Group -->
             <div class="card">
-                <h3>👥 Create Group</h3>
+                <h3>Create Group</h3>
                 <div class="form-group">
                     <input type="text" id="group-name" placeholder="Group Name" />
                     <button onclick="createGroup()">Create Group</button>
@@ -56,13 +56,13 @@
 
             <!-- My Groups -->
             <div class="card">
-                <h3>🏠 My Groups</h3>
+                <h3>My Groups</h3>
                 <div id="groups-list"></div>
             </div>
 
             <!-- Side Quests -->
             <div class="card">
-                <h3>📋 My Side Quests</h3>
+                <h3>My Side Quests</h3>
                 <div class="form-group">
                     <input type="text" id="sidequest-title" placeholder="Quest Title" />
                     <input type="text" id="sidequest-description" placeholder="Description (optional)" />
@@ -77,9 +77,9 @@
             <div class="modal-content">
                 <span class="close" onclick="closeGroupModal()">&times;</span>
                 <h2 id="modal-group-name"></h2>
-                <div style="margin: 10px 0; padding: 10px; background: #f0f0f0; border-radius: 6px; text-align: center;">
-                    <strong>🏆 Your Points in this Group: <span id="modal-user-points">0</span></strong>
-                </div>
+            <div class="points-banner">
+                <strong>Your Points in this Group: <span id="modal-user-points">0</span></strong>
+            </div>
                 
                 <!-- Add Member Section -->
                 <div class="modal-section" id="add-member-section">
@@ -102,10 +102,10 @@
                 <div class="modal-section">
                     <h3>Create Group Challenge</h3>
                     <div class="form-group">
-                        <button onclick="pickRandomChallenger()">🎲 Pick Random Member to Create Challenge</button>
+                        <button onclick="pickRandomChallenger()">Pick Random Member to Create Challenge</button>
                     </div>
                     <div id="challenge-creator-section" class="hidden">
-                        <p style="color: #667eea; font-weight: 600; margin: 10px 0;">You were chosen to create the challenge!</p>
+                        <p class="chosen-notice">You were chosen to create the challenge!</p>
                         <select id="modal-challenge-difficulty">
                             <option value="easy">Easy - 10 points</option>
                             <option value="medium">Medium - 25 points</option>
@@ -125,7 +125,7 @@
 
                 <!-- Group Leaderboard -->
                 <div class="modal-section">
-                    <h3>🏆 Group Leaderboard</h3>
+                    <h3>Group Leaderboard</h3>
                     <div id="modal-leaderboard-list"></div>
                 </div>
             </div>
