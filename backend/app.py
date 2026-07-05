@@ -975,7 +975,14 @@ def _init_db():
 
 
 with app.app_context():
-    _init_db()
+    try:
+        _init_db()
+        print(f"[DB] Connected successfully: {app.config['SQLALCHEMY_DATABASE_URI']}")
+    except Exception as e:
+        print(f"[DB] Failed to connect: {e}")
+        print(f"[DB] Falling back to SQLite...")
+        app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///side_quest.db'
+        _init_db()
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
